@@ -1,0 +1,62 @@
+name: scrape-and-publish
+
+on:
+  schedule:
+    - cron: "0 8 * * *"   # 09:00 Europe/Lisbon (≈08:00 UTC)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false   # vamos usar o PAT nosso (GH_PAT)
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run scraper (produção)
+        run: python mini_casafari.py --config config_full.yml
+
+      - name: Commit & push results (via fine-grained PAT)
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
+        run: |
+          git config user.name "bytestay-bot"
+          git config user.email "bot@bytestay.pt"
+          git add docs/*
+          git commit -m "Atualização automática de resultados [skip ci]" || echo "Nada para commit"
+          # força o remote a usar o PAT
+          git remote set-url origin https://x-access-token:${GH_PAT}@github.com/bytestay/serradaestrela.git
+          git push origin HEAD:main
+
+      - name: Read summary (text)
+        id: read_summary
+        run: |
+          echo "body<<'EOF'" >> $GITHUB_OUTPUT
+          if [ -f docs/email_summary.txt ]; then cat docs/email_summary.txt >> $GITHUB_OUTPUT; else echo "Sem resumo." >> $GITHUB_OUTPUT; fi
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Send email (resumo + link)
+        if: always()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: ${{ secrets.SMTP_HOST }}
+          server_port: ${{ secrets.SMTP_PORT }}
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          subject: "Resumo diário — Serra da Estrela (bytestay/serradaestrela)"
+          from: ${{ secrets.FROM_EMAIL }}
+          to: ${{ secrets.TO_EMAIL || 'geral@bytestay.pt' }}
+          secure: true
+          body: ${{ steps.read_summary.outputs.body }}
