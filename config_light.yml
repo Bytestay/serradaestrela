@@ -1,0 +1,32 @@
+
+# Config LIGHT (teste rápido)
+min_price: 10000
+max_price: 60000
+min_bedrooms: 2
+
+timeout: 25
+retries: 3
+cycles_per_source: 2
+sleep_between: 2.0
+sleep_cycles: 3.0
+cooldown_secs: 300
+
+per_source_limit:
+  idealista: 8
+  imovirtual: 6
+  casasapo: 6
+  remax: 4
+  era: 4
+  century21: 4
+  olx: 6
+  trovit: 4
+
+keywords: ["pedra","granito","xisto"]
+
+sources: ["idealista","imovirtual","casasapo","remax","era","century21","olx","trovit"]
+rotate_priority: false
+
+localities_file: localities.txt
+out_dir: docs
+out_prefix: data
+site_url: "https://bytestay.github.io/serradaestrela/"
